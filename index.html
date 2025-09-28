@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Smart Table Scraper</title>
+    <style>
+      body{font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem;}
+      .row{display:flex; gap:1rem; flex-wrap:wrap}
+      label{display:block; font-weight:600; margin-top:1rem}
+      input,select{width:100%; padding:.5rem; font-size:1rem}
+      button{margin-top:1rem; padding:.6rem 1rem; font-size:1rem; cursor:pointer}
+      .card{max-width:900px}
+      .muted{color:#666}
+    </style>
+  </head>
+  <body>
+    <h1>📊 Smart Table Scraper</h1>
+    <p class="muted">Vercel-friendly (FastAPI). Paste a URL template and download a CSV.</p>
+    <div class="card">
+      <label>Base URL or Template</label>
+      <input id="template" placeholder="https://example.com/list?page={page}" />
+
+      <div class="row">
+        <div style="flex:1">
+          <label>CSS selector</label>
+          <input id="css" value="table" />
+        </div>
+        <div style="width:150px">
+          <label>Table index</label>
+          <input id="tindex" type="number" value="0" />
+        </div>
+        <div style="width:180px">
+          <label>Header strategy</label>
+          <select id="hstrat">
+            <option value="auto" selected>auto</option>
+            <option value="th">th</option>
+            <option value="first_row">first_row</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="width:150px">
+          <label>Start page</label>
+          <input id="sp" type="number" value="1" />
+        </div>
+        <div style="width:150px">
+          <label>End page</label>
+          <input id="ep" type="number" value="5" />
+        </div>
+        <div style="width:180px">
+          <label>Concurrency</label>
+          <input id="cc" type="number" value="8" />
+        </div>
+      </div>
+
+      <button id="go">Scrape & Download CSV</button>
+      <p id="status" class="muted"></p>
+    </div>
+
+    <script>
+      async function scrape() {
+        const status = document.getElementById('status');
+        status.textContent = 'Working…';
+        const payload = {
+          template: document.getElementById('template').value,
+          css_selector: document.getElementById('css').value,
+          table_index: parseInt(document.getElementById('tindex').value || '0', 10),
+          header_strategy: document.getElementById('hstrat').value,
+          start_page: parseInt(document.getElementById('sp').value || '1', 10),
+          end_page: parseInt(document.getElementById('ep').value || '1', 10),
+          concurrency: parseInt(document.getElementById('cc').value || '8', 10),
+          format: 'csv'
+        };
+        try {
+          const res = await fetch('/api/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (res.headers.get('content-type')?.includes('text/csv')) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'scraped_table.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+            status.textContent = 'Done.';
+          } else {
+            const json = await res.json();
+            status.textContent = json.message || JSON.stringify(json);
+          }
+        } catch (e) {
+          status.textContent = 'Error: ' + e;
+        }
+      }
+      document.getElementById('go').addEventListener('click', scrape);
+    </script>
+  </body>
+</html>
